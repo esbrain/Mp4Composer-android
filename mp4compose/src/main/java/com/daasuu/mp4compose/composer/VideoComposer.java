@@ -5,6 +5,7 @@ import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.opengl.EGLContext;
+import android.util.Log;
 import android.util.Size;
 
 import androidx.annotation.NonNull;
@@ -47,11 +48,23 @@ class VideoComposer {
     private final long trimStartUs;
     private final long trimEndUs;
 
+    private long elapsedTimeUs;
+    private long outputStartTimeUs;
+    private long previousTimeUs;
+
+    // 先頭
+    private boolean isFirst;
+    // EOSを出力するフラグ
+    private boolean sendEOS;
+
     private final Logger logger;
 
     VideoComposer(@NonNull MediaExtractor mediaExtractor, int trackIndex,
                   @NonNull MediaFormat outputFormat, @NonNull MuxRender muxRender, int timeScale,
-                  final long trimStartMs, final long trimEndMs, @NonNull Logger logger) {
+                  final long trimStartMs, final long trimEndMs, final long outputStartMs,
+                  final boolean isFirst,
+                  final boolean sendEOS,
+                  @NonNull Logger logger) {
         this.mediaExtractor = mediaExtractor;
         this.trackIndex = trackIndex;
         this.outputFormat = outputFormat;
@@ -59,7 +72,14 @@ class VideoComposer {
         this.timeScale = timeScale;
         this.trimStartUs = TimeUnit.MILLISECONDS.toMicros(trimStartMs);
         this.trimEndUs = trimEndMs == -1 ? trimEndMs : TimeUnit.MILLISECONDS.toMicros(trimEndMs);
+        this.isFirst = isFirst;
+        this.sendEOS = sendEOS;
         this.logger = logger;
+
+        // 出力開始時間を設定する
+        this.outputStartTimeUs = TimeUnit.MILLISECONDS.toMicros(outputStartMs);
+        this.previousTimeUs = 0;
+        this.elapsedTimeUs = 0;
     }
 
 
@@ -214,7 +234,8 @@ class VideoComposer {
             encoderSurface.setPresentationTime(bufferInfo.presentationTimeUs * 1000);
             encoderSurface.swapBuffers();
         } else if (bufferInfo.presentationTimeUs != 0) {
-            writtenPresentationTimeUs = bufferInfo.presentationTimeUs;
+            //writtenPresentationTimeUs = bufferInfo.presentationTimeUs;
+            writtenPresentationTimeUs = elapsedTimeUs;
         }
         return DRAIN_STATE_CONSUMED;
     }
@@ -230,8 +251,11 @@ class VideoComposer {
                     throw new RuntimeException("Video output format changed twice.");
                 }
                 actualOutputFormat = encoder.getOutputFormat();
-                muxRender.setOutputFormat(SampleType.VIDEO, actualOutputFormat);
-                muxRender.onSetOutputFormat();
+                // 先頭だけ処理する
+                if(isFirst) {
+                    muxRender.setOutputFormat(SampleType.VIDEO, actualOutputFormat);
+                    muxRender.onSetOutputFormat();
+                }
                 return DRAIN_STATE_SHOULD_RETRY_IMMEDIATELY;
             case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
                 return DRAIN_STATE_SHOULD_RETRY_IMMEDIATELY;
@@ -239,19 +263,64 @@ class VideoComposer {
         if (actualOutputFormat == null) {
             throw new RuntimeException("Could not determine actual output format.");
         }
+        MediaCodec.BufferInfo outputBufferInfo = new MediaCodec.BufferInfo();
 
+        /*
+        Log.d(TAG, String.format("出力時間(offset:%d,size:%d,timeUs:%d,flags:%x,KeyFrame:%s,Config:%s,EOS:%s,PFrame:%s)",
+                bufferInfo.offset,
+                bufferInfo.size,
+                bufferInfo.presentationTimeUs,
+                bufferInfo.flags,
+                (bufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0 ? "YES" : "NO", // LSB (0x1)
+                (bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0 ? "YES" : "NO", // bit1 (0x2)
+                (bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0 ? "YES" : "NO", // bit2 (0x4)
+                (bufferInfo.flags & MediaCodec.BUFFER_FLAG_PARTIAL_FRAME) != 0 ? "YES" : "NO") // bit3 (0x8)
+
+        );
+         */
         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
             isEncoderEOS = true;
             bufferInfo.set(0, 0, 0, bufferInfo.flags);
+            // 出力用の情報をつくる
+            outputBufferInfo.set(0, 0, 0, bufferInfo.flags);
+        } else {
+            // 出力時間に調整する
+            long currentTimeUs = bufferInfo.presentationTimeUs;
+            // 前回の値との差分を増やす
+            long diffTimeUs = currentTimeUs - previousTimeUs;
+            elapsedTimeUs += diffTimeUs;
+            /*
+            Log.d(TAG, String.format("出力時間%d, %d, %d",
+                currentTimeUs, previousTimeUs, elapsedTimeUs));
+             */
+
+            // bufferInfoを直接上書きするとDecodeが狂う
+            //bufferInfo.presentationTimeUs = elapsedTimeUs;
+
+            // 出力用の情報をつくる
+            outputBufferInfo.set(bufferInfo.offset, bufferInfo.size, outputStartTimeUs + elapsedTimeUs, bufferInfo.flags);
+
+            // 次のフレームのための準備
+            previousTimeUs = currentTimeUs;
         }
         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
             // SPS or PPS, which should be passed by MediaFormat.
             encoder.releaseOutputBuffer(result, false);
             return DRAIN_STATE_SHOULD_RETRY_IMMEDIATELY;
         }
-        muxRender.writeSampleData(SampleType.VIDEO, encoder.getOutputBuffer(result), bufferInfo);
-        writtenPresentationTimeUs = bufferInfo.presentationTimeUs;
+        // EOSに到達した時
+        if(isEncoderEOS && !sendEOS) {
+            // 何もしない
+        } else {
+            muxRender.writeSampleData(SampleType.VIDEO, encoder.getOutputBuffer(result), outputBufferInfo);
+        }
+        writtenPresentationTimeUs = elapsedTimeUs;
+        Log.d(TAG, String.format("出力時間 %f s", (double)elapsedTimeUs / 1000000));
         encoder.releaseOutputBuffer(result, false);
         return DRAIN_STATE_CONSUMED;
+    }
+
+    public long getOutputDurationTimeUs() {
+        return trimEndUs - trimStartUs;
     }
 }

@@ -31,10 +31,12 @@ class Mp4ComposerEngine {
     private VideoComposer videoComposer;
     private IAudioComposer audioComposer;
     private MediaExtractor mediaExtractor;
+    private MediaExtractor audioMediaExtractor;
     private MediaMuxer mediaMuxer;
     private ProgressCallback progressCallback;
     private long durationUs;
     private MediaMetadataRetriever mediaMetadataRetriever;
+    private MediaMetadataRetriever audioMediaMetadataRetriever;
     private final Logger logger;
 
     Mp4ComposerEngine(@NonNull final Logger logger) {
@@ -47,6 +49,7 @@ class Mp4ComposerEngine {
 
     void compose(
             final DataSource srcDataSource,
+            final DataSource srcAudioSource,
             final String destSrc,
             final FileDescriptor destFileDescriptor,
             final Size outputResolution,
@@ -90,7 +93,7 @@ class Mp4ComposerEngine {
             String mime = format.getString(MediaFormat.KEY_MIME);
 
             final int videoTrackIndex;
-            final int audioTrackIndex;
+            int audioTrackIndex;
 
             if (mime.startsWith(VIDEO_PREFIX)) {
                 videoTrackIndex = 0;
@@ -100,28 +103,42 @@ class Mp4ComposerEngine {
                 audioTrackIndex = 0;
             }
 
+            if (srcAudioSource == null) {
+                audioMediaExtractor = mediaExtractor;
+                audioMediaMetadataRetriever = mediaMetadataRetriever;
+            } else {
+                audioMediaExtractor = new MediaExtractor();
+                audioMediaExtractor.setDataSource(srcAudioSource.getFileDescriptor());
+                audioMediaMetadataRetriever = new MediaMetadataRetriever();
+                audioMediaMetadataRetriever.setDataSource(srcAudioSource.getFileDescriptor());
+                audioTrackIndex = 0;
+            }
+
             final MediaFormat actualVideoOutputFormat = createVideoOutputFormatWithAvailableEncoders(bitrate, outputResolution);
 
             // setup video composer
-            videoComposer = new VideoComposer(mediaExtractor, videoTrackIndex, actualVideoOutputFormat, muxRender, timeScale, trimStartMs, trimEndMs, logger);
+            videoComposer = new VideoComposer(mediaExtractor, videoTrackIndex, actualVideoOutputFormat, muxRender,
+                    timeScale, trimStartMs, trimEndMs, 0, true, true,
+                    logger);
             videoComposer.setUp(filter, rotation, outputResolution, inputResolution, fillMode, fillModeCustomItem, flipVertical, flipHorizontal, shareContext);
             mediaExtractor.selectTrack(videoTrackIndex);
 
+
             // setup audio if present and not muted
-            if (mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) != null && !mute) {
+            if (audioMediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) != null && !mute) {
                 // has Audio video
-                final MediaFormat inputMediaFormat = mediaExtractor.getTrackFormat(audioTrackIndex);
+                final MediaFormat inputMediaFormat = audioMediaExtractor.getTrackFormat(audioTrackIndex);
                 final MediaFormat outputMediaFormat = createAudioOutputFormat(inputMediaFormat);
 
                 if (timeScale < 2 && outputMediaFormat.equals(inputMediaFormat)) {
-                    audioComposer = new AudioComposer(mediaExtractor, audioTrackIndex, muxRender, trimStartMs, trimEndMs, logger);
+                    audioComposer = new AudioComposer(audioMediaExtractor, audioTrackIndex, muxRender, trimStartMs, trimEndMs, logger);
                 } else {
-                    audioComposer = new RemixAudioComposer(mediaExtractor, audioTrackIndex, outputMediaFormat, muxRender, timeScale, trimStartMs, trimEndMs);
+                    audioComposer = new RemixAudioComposer(audioMediaExtractor, audioTrackIndex, outputMediaFormat, muxRender, timeScale, trimStartMs, trimEndMs);
                 }
 
                 audioComposer.setup();
 
-                mediaExtractor.selectTrack(audioTrackIndex);
+                audioMediaExtractor.selectTrack(audioTrackIndex);
 
                 runPipelines();
             } else {
@@ -131,6 +148,8 @@ class Mp4ComposerEngine {
 
 
             mediaMuxer.stop();
+        } catch(Exception e) {
+            e.printStackTrace();
         } finally {
             try {
                 if (videoComposer != null) {
@@ -144,6 +163,12 @@ class Mp4ComposerEngine {
                 if (mediaExtractor != null) {
                     mediaExtractor.release();
                     mediaExtractor = null;
+                }
+                if (srcAudioSource != null) {
+                    if(audioMediaExtractor != null) {
+                        audioMediaExtractor.release();
+                        audioMediaExtractor = null;
+                    }
                 }
             } catch (RuntimeException e) {
                 logger.error(TAG, "Could not shutdown mediaExtractor, codecs and mediaMuxer pipeline.", e);
@@ -160,6 +185,12 @@ class Mp4ComposerEngine {
                 if (mediaMetadataRetriever != null) {
                     mediaMetadataRetriever.release();
                     mediaMetadataRetriever = null;
+                }
+                if (srcAudioSource != null) {
+                    if (audioMediaMetadataRetriever != null) {
+                        audioMediaMetadataRetriever.release();
+                        audioMediaMetadataRetriever = null;
+                    }
                 }
             } catch (RuntimeException e) {
                 logger.error(TAG, "Failed to release mediaMetadataRetriever.", e);

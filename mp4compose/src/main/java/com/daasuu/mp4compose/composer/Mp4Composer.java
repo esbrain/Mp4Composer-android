@@ -35,6 +35,7 @@ public class Mp4Composer {
     private final static String TAG = Mp4Composer.class.getSimpleName();
 
     private final DataSource srcDataSource;
+    private final DataSource srcAudioSource;
     private final String destPath;
     private FileDescriptor destFileDescriptor;
     private GlFilter filter;
@@ -65,16 +66,25 @@ public class Mp4Composer {
 
     public Mp4Composer(@NonNull final String srcPath, @NonNull final String destPath) {
         this.srcDataSource = new FilePathDataSource(srcPath, logger, errorDataSource);
+        this.srcAudioSource = null;
+        this.destPath = destPath;
+    }
+
+    public Mp4Composer(@NonNull final String srcPath, @NonNull final String srcAudioPath, @NonNull final String destPath) {
+        this.srcDataSource = new FilePathDataSource(srcPath, logger, errorDataSource);
+        this.srcAudioSource = new FilePathDataSource(srcAudioPath, logger, errorDataSource);
         this.destPath = destPath;
     }
 
     public Mp4Composer(@NonNull final FileDescriptor srcFileDescriptor, @NonNull final String destPath) {
         this.srcDataSource = new FileDescriptorDataSource(srcFileDescriptor);
+        this.srcAudioSource = null;
         this.destPath = destPath;
     }
 
     public Mp4Composer(@NonNull final Uri srcUri, @NonNull final String destPath, @NonNull final Context context) {
         this.srcDataSource = new UriDataSource(srcUri, context, logger, errorDataSource);
+        this.srcAudioSource = null;
         this.destPath = destPath;
     }
 
@@ -84,6 +94,7 @@ public class Mp4Composer {
             throw new IllegalArgumentException("destFileDescriptor can not use");
         }
         this.srcDataSource = new FileDescriptorDataSource(srcFileDescriptor);
+        this.srcAudioSource = null;
         this.destPath = null;
         this.destFileDescriptor = destFileDescriptor;
     }
@@ -94,6 +105,7 @@ public class Mp4Composer {
             throw new IllegalArgumentException("destFileDescriptor can not use");
         }
         this.srcDataSource = new UriDataSource(srcUri, context, logger, errorDataSource);
+        this.srcAudioSource = null;
         this.destPath = null;
         this.destFileDescriptor = destFileDescriptor;
     }
@@ -267,6 +279,7 @@ public class Mp4Composer {
                     }
                     engine.compose(
                             srcDataSource,
+                            srcAudioSource,
                             destPath,
                             destFileDescriptor,
                             outputResolution,
