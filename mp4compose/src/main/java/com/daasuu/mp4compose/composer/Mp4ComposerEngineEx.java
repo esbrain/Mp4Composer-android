@@ -11,6 +11,7 @@ import com.daasuu.mp4compose.FillModeCustomItem;
 import com.daasuu.mp4compose.Rotation;
 import com.daasuu.mp4compose.filter.GlFilter;
 import com.daasuu.mp4compose.logger.Logger;
+import com.daasuu.mp4compose.source.AudioSource;
 import com.daasuu.mp4compose.source.DataSource;
 
 import java.io.FileDescriptor;
@@ -40,6 +41,8 @@ class Mp4ComposerEngineEx {
     private MediaMetadataRetriever audioMediaMetadataRetriever;
     private final Logger logger;
 
+    private long totalDurationUs;
+
     Mp4ComposerEngineEx(@NonNull final Logger logger) {
         this.logger = logger;
     }
@@ -50,7 +53,7 @@ class Mp4ComposerEngineEx {
 
     void compose(
             final VideoTrack[] videoTracks,
-            final DataSource srcAudioSource,
+            final AudioSource srcAudioSource,
             final String destSrc,
             final FileDescriptor destFileDescriptor,
             final Size outputResolution,
@@ -112,9 +115,12 @@ class Mp4ComposerEngineEx {
                 audioMediaMetadataRetriever = mediaMetadataRetriever;
             } else {
                 audioMediaExtractor = new MediaExtractor();
-                audioMediaExtractor.setDataSource(srcAudioSource.getFileDescriptor());
+                String path = srcAudioSource.getAudioPath();
+                Log.d(TAG, "オーディオファイルを別で設定する。" + path);
+                audioMediaExtractor.setDataSource(path);
+                Log.d(TAG, "オーディオファイルを別で設定できた。");
                 audioMediaMetadataRetriever = new MediaMetadataRetriever();
-                audioMediaMetadataRetriever.setDataSource(srcAudioSource.getFileDescriptor());
+                audioMediaMetadataRetriever.setDataSource(path);
                 audioTrackIndex = 0;
             }
 
@@ -130,6 +136,11 @@ class Mp4ComposerEngineEx {
                     shareContext
             );
             videoComposer.setVideoTracks(videoTracks);
+
+            // 総出力時間を得る
+            totalDurationUs = videoTracks[videoTracks.length-1].getTotalDurationMs() * 1000;
+            Log.d(TAG, String.format("作業進捗用 total:%d", totalDurationUs));
+
             /*
 
             // setup video composer
@@ -290,11 +301,11 @@ class Mp4ComposerEngineEx {
             boolean stepped = videoComposer.stepPipeline()
                     || audioComposer.stepPipeline();
             loopCount++;
-            if (durationUs > 0 && loopCount % PROGRESS_INTERVAL_STEPS == 0) {
-                double videoProgress = videoComposer.isFinished() ? 1.0 : Math.min(1.0, (double) videoComposer.getWrittenPresentationTimeUs() / durationUs);
-                Log.d(TAG, String.format("作業進捗 (video) %d / %d (%f)", videoComposer.getWrittenPresentationTimeUs(), durationUs, (double) videoComposer.getWrittenPresentationTimeUs() / durationUs));
-                double audioProgress = audioComposer.isFinished() ? 1.0 : Math.min(1.0, (double) audioComposer.getWrittenPresentationTimeUs() / durationUs);
-                Log.d(TAG, String.format("作業進捗 (audio) %d / %d (%f)", audioComposer.getWrittenPresentationTimeUs(), durationUs, (double) audioComposer.getWrittenPresentationTimeUs() / durationUs));
+            if (totalDurationUs > 0 && loopCount % PROGRESS_INTERVAL_STEPS == 0) {
+                double videoProgress = videoComposer.isFinished() ? 1.0 : Math.min(1.0, (double) videoComposer.getWrittenPresentationTimeUs() / totalDurationUs);
+                Log.d(TAG, String.format("作業進捗 (video) %d / %d (%f)", videoComposer.getWrittenPresentationTimeUs(), totalDurationUs, (double) videoComposer.getWrittenPresentationTimeUs() / totalDurationUs));
+                double audioProgress = audioComposer.isFinished() ? 1.0 : Math.min(1.0, (double) audioComposer.getWrittenPresentationTimeUs() / totalDurationUs);
+                Log.d(TAG, String.format("作業進捗 (audio) %d / %d (%f)", audioComposer.getWrittenPresentationTimeUs(), totalDurationUs, (double) audioComposer.getWrittenPresentationTimeUs() / totalDurationUs));
                 double progress = (videoProgress + audioProgress) / 2.0;
                 Log.d(TAG, String.format("作業進捗 (total) %f", progress));
                 if (progressCallback != null) {

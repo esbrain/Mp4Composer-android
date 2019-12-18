@@ -25,7 +25,7 @@ public class VideoTrack {
     private MediaFormat outputFormat;
     private MuxRender muxRender;
     private MediaMetadataRetriever mediaMetadataRetriever;
-    private long durationUs;
+    private long orgDurationUs;
     private static final String VIDEO_PREFIX = "video/";
     private VideoComposer videoComposer;
     private int videoTrackIndex;
@@ -55,11 +55,12 @@ public class VideoTrack {
             mediaMetadataRetriever = new MediaMetadataRetriever();
             mediaMetadataRetriever.setDataSource(srcDataSource.getFileDescriptor());
             try {
-                durationUs = Long.parseLong(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000;
+                orgDurationUs = Long.parseLong(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000;
             } catch (NumberFormatException e) {
-                durationUs = -1;
+                orgDurationUs = -1;
             }
-            logger.debug(TAG, "Duration (us): " + durationUs);
+            logger.debug(TAG, "Duration (us): " + orgDurationUs);
+
 
             // 回転検知
             videoRotate = getVideoRotation(srcDataSource);
@@ -220,5 +221,9 @@ public class VideoTrack {
                 logger.error(TAG, "Failed to release mediaMetadataRetriever.", e);
             }
         }
+    }
+
+    public long getTotalDurationMs() {
+        return trimEndMs - trimStartMs + outputStartMs;
     }
 }

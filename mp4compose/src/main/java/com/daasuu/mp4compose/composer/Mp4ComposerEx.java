@@ -17,6 +17,7 @@ import com.daasuu.mp4compose.Rotation;
 import com.daasuu.mp4compose.filter.GlFilter;
 import com.daasuu.mp4compose.logger.AndroidLogger;
 import com.daasuu.mp4compose.logger.Logger;
+import com.daasuu.mp4compose.source.AudioSource;
 import com.daasuu.mp4compose.source.DataSource;
 import com.daasuu.mp4compose.source.FileDescriptorDataSource;
 import com.daasuu.mp4compose.source.FilePathDataSource;
@@ -36,7 +37,7 @@ public class Mp4ComposerEx {
     private final static String TAG = Mp4Composer.class.getSimpleName();
     //private DataSource srcDataSource = null;
     private ArrayList<VideoEntry> srcDataSource = new ArrayList<VideoEntry>();
-    private DataSource srcAudioSource = null;
+    private AudioSource srcAudioSource = null;
     private final String destPath;
     private FileDescriptor destFileDescriptor;
     private GlFilter filter;
@@ -112,6 +113,7 @@ public class Mp4ComposerEx {
         return this;
     }
 
+    /*
     public Mp4ComposerEx audio(@NonNull String srcAudioPath) {
         this.srcAudioSource = new FilePathDataSource(srcAudioPath, logger, errorDataSource);
         return this;
@@ -127,6 +129,12 @@ public class Mp4ComposerEx {
             throw new IllegalArgumentException("destFileDescriptor can not use");
         }
         this.srcAudioSource = new UriDataSource(srcUri, context, logger, errorDataSource);
+        return this;
+    }
+
+     */
+    public Mp4ComposerEx audio(@NonNull String srcAudioPath) {
+        this.srcAudioSource = new AudioSource(srcAudioPath);
         return this;
     }
 

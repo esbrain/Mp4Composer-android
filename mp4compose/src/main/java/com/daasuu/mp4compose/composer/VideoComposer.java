@@ -224,7 +224,7 @@ class VideoComposer {
         }
         final boolean doRender = (bufferInfo.size > 0
                 && bufferInfo.presentationTimeUs >= trimStartUs
-                && (bufferInfo.presentationTimeUs <= trimEndUs || trimEndUs == -1));
+                && (bufferInfo.presentationTimeUs < trimEndUs || trimEndUs == -1));
         // NOTE: doRender will block if buffer (of encoder) is full.
         // Refer: http://bigflake.com/mediacodec/CameraToMpegTest.java.txt
         decoder.releaseOutputBuffer(result, doRender);
