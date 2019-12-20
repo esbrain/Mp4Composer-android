@@ -232,6 +232,12 @@ public class VideoComposer {
             isDecoderEOS = true;
             bufferInfo.size = 0;
         }
+        // 時間を超えた場合も終了処理する
+        if(trimEndUs != -1 && bufferInfo.presentationTimeUs >= trimEndUs) {
+            encoder.signalEndOfInputStream();
+            isDecoderEOS = true;
+            bufferInfo.size = 0;
+        }
         final boolean doRender = (bufferInfo.size > 0
                 && bufferInfo.presentationTimeUs >= trimStartUs
                 && (bufferInfo.presentationTimeUs < trimEndUs || trimEndUs == -1));
