@@ -241,10 +241,13 @@ class Mp4ComposerEngineEx {
                                                                             @NonNull final Size outputResolution) {
         final MediaCodecList mediaCodecList = new MediaCodecList(MediaCodecList.REGULAR_CODECS);
 
+        /*
         final MediaFormat hevcMediaFormat = createVideoFormat(MediaFormat.MIMETYPE_VIDEO_HEVC, bitrate, outputResolution);
         if (mediaCodecList.findEncoderForFormat(hevcMediaFormat) != null) {
             return hevcMediaFormat;
         }
+
+         */
 
         final MediaFormat avcMediaFormat = createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, bitrate, outputResolution);
         if (mediaCodecList.findEncoderForFormat(avcMediaFormat) != null) {
