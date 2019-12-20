@@ -22,7 +22,8 @@ import java.util.concurrent.TimeUnit;
 
 // Refer: https://android.googlesource.com/platform/cts/+/lollipop-release/tests/tests/media/src/android/media/cts/ExtractDecodeEditEncodeMuxTest.java
 // Refer: https://github.com/ypresto/android-transcoder/blob/master/lib/src/main/java/net/ypresto/androidtranscoder/engine/VideoTrackTranscoder.java
-class VideoComposer {
+public class VideoComposer {
+    public static long currentElapsedTimeUs = 0;
     private static final String TAG = "VideoComposer";
     private static final int DRAIN_STATE_NONE = 0;
     private static final int DRAIN_STATE_SHOULD_RETRY_IMMEDIATELY = 1;
@@ -48,9 +49,13 @@ class VideoComposer {
     private final long trimStartUs;
     private final long trimEndUs;
 
-    private long elapsedTimeUs;
-    private long outputStartTimeUs;
-    private long previousTimeUs;
+    private long decoderElapsedTimeUs;
+    private long decoderOutputStartTimeUs;
+    private long decoderPreviousTimeUs;
+
+    private long encoderElapsedTimeUs;
+    private long encoderOutputStartTimeUs;
+    private long encoderPreviousTimeUs;
 
     // 先頭
     private boolean isFirst;
@@ -77,9 +82,14 @@ class VideoComposer {
         this.logger = logger;
 
         // 出力開始時間を設定する
-        this.outputStartTimeUs = TimeUnit.MILLISECONDS.toMicros(outputStartMs);
-        this.previousTimeUs = 0;
-        this.elapsedTimeUs = 0;
+        this.encoderOutputStartTimeUs = TimeUnit.MILLISECONDS.toMicros(outputStartMs);
+        this.encoderPreviousTimeUs = 0;
+        this.encoderElapsedTimeUs = 0;
+
+        this.decoderOutputStartTimeUs = TimeUnit.MILLISECONDS.toMicros(outputStartMs);
+        this.decoderPreviousTimeUs = 0;
+        this.decoderElapsedTimeUs = 0;
+
     }
 
 
@@ -229,13 +239,25 @@ class VideoComposer {
         // Refer: http://bigflake.com/mediacodec/CameraToMpegTest.java.txt
         decoder.releaseOutputBuffer(result, doRender);
         if (doRender) {
+            // 出力時間に調整する
+            long currentTimeUs = bufferInfo.presentationTimeUs;
+            // 前回の値との差分を増やす
+            long diffTimeUs = currentTimeUs - decoderPreviousTimeUs;
+            decoderElapsedTimeUs += diffTimeUs;
+
             decoderSurface.awaitNewImage();
+
+            // 時間を記録する
+            currentElapsedTimeUs = decoderOutputStartTimeUs + currentTimeUs;
             decoderSurface.drawImage();
+            //encoderSurface.setPresentationTime(bufferInfo.presentationTimeUs * 1000);
             encoderSurface.setPresentationTime(bufferInfo.presentationTimeUs * 1000);
             encoderSurface.swapBuffers();
+
+            decoderPreviousTimeUs = currentTimeUs;
         } else if (bufferInfo.presentationTimeUs != 0) {
             //writtenPresentationTimeUs = bufferInfo.presentationTimeUs;
-            writtenPresentationTimeUs = elapsedTimeUs;
+            writtenPresentationTimeUs = encoderElapsedTimeUs;
         }
         return DRAIN_STATE_CONSUMED;
     }
@@ -287,8 +309,8 @@ class VideoComposer {
             // 出力時間に調整する
             long currentTimeUs = bufferInfo.presentationTimeUs;
             // 前回の値との差分を増やす
-            long diffTimeUs = currentTimeUs - previousTimeUs;
-            elapsedTimeUs += diffTimeUs;
+            long diffTimeUs = currentTimeUs - encoderPreviousTimeUs;
+            encoderElapsedTimeUs += diffTimeUs;
             /*
             Log.d(TAG, String.format("出力時間%d, %d, %d",
                 currentTimeUs, previousTimeUs, elapsedTimeUs));
@@ -298,10 +320,10 @@ class VideoComposer {
             //bufferInfo.presentationTimeUs = elapsedTimeUs;
 
             // 出力用の情報をつくる
-            outputBufferInfo.set(bufferInfo.offset, bufferInfo.size, outputStartTimeUs + elapsedTimeUs, bufferInfo.flags);
+            outputBufferInfo.set(bufferInfo.offset, bufferInfo.size, encoderOutputStartTimeUs + encoderElapsedTimeUs, bufferInfo.flags);
 
             // 次のフレームのための準備
-            previousTimeUs = currentTimeUs;
+            encoderPreviousTimeUs = currentTimeUs;
         }
         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
             // SPS or PPS, which should be passed by MediaFormat.
@@ -314,8 +336,8 @@ class VideoComposer {
         } else {
             muxRender.writeSampleData(SampleType.VIDEO, encoder.getOutputBuffer(result), outputBufferInfo);
         }
-        writtenPresentationTimeUs = elapsedTimeUs;
-        Log.d(TAG, String.format("出力時間 %f s", (double)elapsedTimeUs / 1000000));
+        writtenPresentationTimeUs = encoderElapsedTimeUs;
+        Log.d(TAG, String.format("出力時間 %f s", (double)encoderElapsedTimeUs / 1000000));
         encoder.releaseOutputBuffer(result, false);
         return DRAIN_STATE_CONSUMED;
     }
