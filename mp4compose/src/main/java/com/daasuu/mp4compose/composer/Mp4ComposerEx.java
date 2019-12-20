@@ -397,7 +397,11 @@ public class Mp4ComposerEx {
         MediaMetadataRetriever mediaMetadataRetriever = null;
         try {
             mediaMetadataRetriever = new MediaMetadataRetriever();
-            mediaMetadataRetriever.setDataSource(dataSource.getFileDescriptor());
+            if(dataSource.getFilePath() != null) {
+                mediaMetadataRetriever.setDataSource(dataSource.getFilePath());
+            } else {
+                mediaMetadataRetriever.setDataSource(dataSource.getFileDescriptor());
+            }
             final String orientation = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
             if (orientation == null) {
                 return null;
@@ -438,7 +442,11 @@ public class Mp4ComposerEx {
         MediaMetadataRetriever retriever = null;
         try {
             retriever = new MediaMetadataRetriever();
-            retriever.setDataSource(dataSource.getFileDescriptor());
+            if(dataSource.getFilePath() != null) {
+                retriever.setDataSource(dataSource.getFilePath());
+            } else {
+                retriever.setDataSource(dataSource.getFileDescriptor());
+            }
             final String rawWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
             final String rawHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
             if (rawWidth == null || rawHeight == null) {

@@ -3,7 +3,7 @@ package com.daasuu.sample;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
+//import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
@@ -14,6 +14,8 @@ import com.daasuu.sample.video.VideoLoadListener;
 import com.daasuu.sample.video.VideoLoader;
 
 import java.util.List;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 public class MovieListActivity extends AppCompatActivity {
 

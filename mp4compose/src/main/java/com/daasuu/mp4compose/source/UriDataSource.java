@@ -34,4 +34,10 @@ public class UriDataSource implements DataSource {
     public FileDescriptor getFileDescriptor() {
         return fileDescriptor;
     }
+
+    @Override
+    public String getFilePath() {
+        return null;
+    }
+
 }

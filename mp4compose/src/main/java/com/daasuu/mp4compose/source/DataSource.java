@@ -5,8 +5,9 @@ import androidx.annotation.NonNull;
 import java.io.FileDescriptor;
 
 public interface DataSource {
-    @NonNull
     FileDescriptor getFileDescriptor();
+
+    String getFilePath();
 
     interface Listener {
         void onError(Exception e);

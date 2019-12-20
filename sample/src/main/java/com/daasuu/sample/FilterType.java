@@ -3,8 +3,16 @@ package com.daasuu.sample;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Typeface;
 import android.util.Log;
+import android.widget.ImageView;
 
+import com.airbnb.lottie.FontAssetDelegate;
+import com.airbnb.lottie.LottieComposition;
+import com.airbnb.lottie.LottieCompositionFactory;
+import com.airbnb.lottie.LottieDrawable;
+import com.airbnb.lottie.LottieResult;
+import com.airbnb.lottie.TextDelegate;
 import com.daasuu.mp4compose.filter.GlBilateralFilter;
 import com.daasuu.mp4compose.filter.GlBoxBlurFilter;
 import com.daasuu.mp4compose.filter.GlBrightnessFilter;
@@ -53,6 +61,7 @@ import java.util.List;
 
 public enum FilterType {
     DEFAULT,
+    LOTTIE,
     BITMAP_OVERLAY_SAMPLE,
     BILATERAL_BLUR,
     BOX_BLUR,
@@ -105,6 +114,8 @@ public enum FilterType {
         switch (filterType) {
             case DEFAULT:
                 return new GlFilter();
+            case LOTTIE:
+                return createLottieFilter();
             case BILATERAL_BLUR:
                 return new GlBilateralFilter();
             case BOX_BLUR:
@@ -197,7 +208,7 @@ public enum FilterType {
             case VIGNETTE:
                 return new GlVignetteFilter();
             case WATERMARK:
-                return new GlWatermarkFilter(BitmapFactory.decodeResource(context.getResources(), R.mipmap.ic_launcher_round), GlWatermarkFilter.Position.RIGHT_BOTTOM);
+                return new GlWatermarkFilter(BitmapFactory.decodeResource(context.getResources(), R.drawable.sample_bitmap), GlWatermarkFilter.Position.RIGHT_BOTTOM);
             case WEAK_PIXEL:
                 return new GlWeakPixelInclusionFilter();
             case WHITE_BALANCE:
@@ -212,6 +223,34 @@ public enum FilterType {
             default:
                 return new GlFilter();
         }
+    }
+
+    public static GlLottieFilter createLottieFilter() {
+        // Lottieの画像を書き出す。
+        LottieResult res = LottieCompositionFactory.fromAssetSync(AppCore.shared().getContext(),"compose_1.zip");
+        if(res.getException() != null) {
+            Log.d("main", "Lottie error", res.getException());
+            return null;
+        }
+        LottieDrawable drawable = new LottieDrawable();
+        if(res.getValue() == null) {
+            Log.d("main", "Lottie composition is null");
+            return null;
+        }
+        LottieComposition comp = (LottieComposition)res.getValue();
+        drawable.setComposition(comp);
+        Context me = AppCore.shared().getActivity();
+        drawable.setFontAssetDelegate(new FontAssetDelegate() {
+            @Override
+            public Typeface fetchFont(String fontFamily) {
+                return Typeface.createFromAsset(me.getResources().getAssets(), "SourceHanSans-Medium.otf");
+            }
+        });
+        TextDelegate textDelegate = new TextDelegate(drawable);
+        textDelegate.setText("NAME", "何でこんなになるのかABC");
+        drawable.setTextDelegate(textDelegate);
+
+        return new GlLottieFilter(drawable);
     }
 
 }

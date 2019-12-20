@@ -31,6 +31,11 @@ public class VideoEntry {
         return new VideoEntry(src, trimStartMs, trimEndMs, outputStartMs);
     }
 
+    public static VideoEntry create(@NonNull final String filePath, final long trimStartMs, final long trimEndMs, final long outputStartMs) {
+        DataSource src = new FilePathDataSource(filePath);
+        return new VideoEntry(src, trimStartMs, trimEndMs, outputStartMs);
+    }
+
     public static VideoEntry create(@NonNull final FileDescriptor fileDescriptor, final long trimStartMs, final long trimEndMs, final long outputStartMs) {
         DataSource src = new FileDescriptorDataSource(fileDescriptor);
         return new VideoEntry(src, trimStartMs, trimEndMs, outputStartMs);

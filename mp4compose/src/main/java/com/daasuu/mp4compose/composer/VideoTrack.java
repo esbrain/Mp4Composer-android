@@ -51,9 +51,13 @@ public class VideoTrack {
             this.srcDataSource = srcDataSource;
 
             mediaExtractor = new MediaExtractor();
-            mediaExtractor.setDataSource(srcDataSource.getFileDescriptor());
+            if(srcDataSource.getFilePath() != null) {
+                mediaExtractor.setDataSource(srcDataSource.getFilePath());
+            } else {
+                mediaExtractor.setDataSource(srcDataSource.getFileDescriptor());
+            }
             mediaMetadataRetriever = new MediaMetadataRetriever();
-            mediaMetadataRetriever.setDataSource(srcDataSource.getFileDescriptor());
+            mediaMetadataRetriever.setDataSource(srcDataSource.getFilePath());
             try {
                 orgDurationUs = Long.parseLong(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000;
             } catch (NumberFormatException e) {
@@ -167,7 +171,11 @@ public class VideoTrack {
         MediaMetadataRetriever mediaMetadataRetriever = null;
         try {
             mediaMetadataRetriever = new MediaMetadataRetriever();
-            mediaMetadataRetriever.setDataSource(dataSource.getFileDescriptor());
+            if(dataSource.getFilePath() != null) {
+                mediaMetadataRetriever.setDataSource(dataSource.getFilePath());
+            } else {
+                mediaMetadataRetriever.setDataSource(dataSource.getFileDescriptor());
+            }
             final String orientation = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
             if (orientation == null) {
                 return null;
@@ -202,7 +210,11 @@ public class VideoTrack {
         MediaMetadataRetriever retriever = null;
         try {
             retriever = new MediaMetadataRetriever();
-            retriever.setDataSource(dataSource.getFileDescriptor());
+            if(dataSource.getFilePath() != null) {
+                retriever.setDataSource(dataSource.getFilePath());
+            } else {
+                retriever.setDataSource(dataSource.getFileDescriptor());
+            }
             final String rawWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
             final String rawHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
             if (rawWidth == null || rawHeight == null) {

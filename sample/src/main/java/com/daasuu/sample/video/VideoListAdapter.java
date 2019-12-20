@@ -1,7 +1,7 @@
 package com.daasuu.sample.video;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
+//import android.support.annotation.NonNull;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +13,8 @@ import com.bumptech.glide.Glide;
 import com.daasuu.sample.R;
 
 import java.util.List;
+
+import androidx.annotation.NonNull;
 
 /**
  * Created by sudamasayuki on 2017/11/22.

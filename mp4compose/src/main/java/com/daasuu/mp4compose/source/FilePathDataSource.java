@@ -16,8 +16,10 @@ public class FilePathDataSource implements DataSource {
 
     private FileDescriptor fileDescriptor;
 
-    public FilePathDataSource(@NonNull String filePath, @NonNull Logger logger, @NonNull Listener listener) {
+    private String filePath;
 
+    public FilePathDataSource(@NonNull String filePath, @NonNull Logger logger, @NonNull Listener listener) {
+        this.filePath = filePath;
         final File srcFile = new File(filePath);
         final FileInputStream fileInputStream;
         try {
@@ -36,9 +38,19 @@ public class FilePathDataSource implements DataSource {
         }
     }
 
+    // 非常用
+    public FilePathDataSource(@NonNull String filePath) {
+        this.filePath = filePath;
+    }
+
     @NonNull
     @Override
+    public String getFilePath() {
+        return this.filePath;
+    }
+
+    @Override
     public FileDescriptor getFileDescriptor() {
-        return fileDescriptor;
+        return null;
     }
 }

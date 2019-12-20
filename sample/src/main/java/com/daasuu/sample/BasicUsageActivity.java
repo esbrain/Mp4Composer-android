@@ -8,7 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.v7.app.AppCompatActivity;
+//import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -20,6 +20,7 @@ import android.widget.Toast;
 
 import com.daasuu.mp4compose.FillMode;
 import com.daasuu.mp4compose.composer.Mp4Composer;
+import com.daasuu.mp4compose.composer.Mp4ComposerEx;
 import com.daasuu.mp4compose.filter.GlFilter;
 import com.daasuu.mp4compose.filter.GlFilterGroup;
 import com.daasuu.mp4compose.filter.GlMonochromeFilter;
@@ -34,13 +35,15 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 public class BasicUsageActivity extends AppCompatActivity {
 
     private VideoItem videoItem = null;
 
     private static final String TAG = "SAMPLE";
 
-    private Mp4Composer mp4Composer;
+    private Mp4ComposerEx mp4Composer;
 
     private CheckBox muteCheckBox;
     private CheckBox flipVerticalCheckBox;
@@ -58,6 +61,9 @@ public class BasicUsageActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
+        AppCore.shared().setActivity(this);
 
         setContentView(R.layout.activity_basic_usage);
 
@@ -111,6 +117,7 @@ public class BasicUsageActivity extends AppCompatActivity {
     private void changeFilter(FilterType filter) {
         glFilter = null;
         glFilter = FilterType.createGlFilter(filter, this);
+
         Button button = findViewById(R.id.btn_filter);
         button.setText("Filter : " + filter.name());
     }
@@ -145,16 +152,20 @@ public class BasicUsageActivity extends AppCompatActivity {
     }
 
     private void startCodec() {
+        Log.d(TAG, String.format("input video path is %s", videoItem.getPath()));
         videoPath = getVideoFilePath();
+        Log.d(TAG, String.format("output video path is %s", videoPath));
 
         final ProgressBar progressBar = findViewById(R.id.progress_bar);
         progressBar.setMax(100);
 
 
         mp4Composer = null;
-        mp4Composer = new Mp4Composer(videoItem.getPath(), videoPath)
+        mp4Composer = new Mp4ComposerEx(
+                videoItem.getPath(), videoPath, 0, 30000, 0)
                 // .rotation(Rotation.ROTATION_270)
-                .size(720, 720)
+                .size(1920, 1080)
+                .audio(AppCore.shared().getAudioFile().getPath())
                 .fillMode(FillMode.PRESERVE_ASPECT_FIT)
                 .filter(glFilter)
                 .mute(muteCheckBox.isChecked())

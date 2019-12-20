@@ -78,14 +78,22 @@ class Mp4ComposerEngineEx {
             DataSource srcDataSource = videoTracks[0].getDataSource();
 
             mediaExtractor = new MediaExtractor();
-            mediaExtractor.setDataSource(srcDataSource.getFileDescriptor());
+            if(srcDataSource.getFilePath() != null) {
+                mediaExtractor.setDataSource(srcDataSource.getFilePath());
+            } else {
+                mediaExtractor.setDataSource(srcDataSource.getFileDescriptor());
+            }
             if (Build.VERSION.SDK_INT >= 26 && destSrc == null) {
                 mediaMuxer = new MediaMuxer(destFileDescriptor, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             } else {
                 mediaMuxer = new MediaMuxer(destSrc, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             }
             mediaMetadataRetriever = new MediaMetadataRetriever();
-            mediaMetadataRetriever.setDataSource(srcDataSource.getFileDescriptor());
+            if(srcDataSource.getFilePath() != null) {
+                mediaMetadataRetriever.setDataSource(srcDataSource.getFilePath());
+            } else {
+                mediaMetadataRetriever.setDataSource(srcDataSource.getFileDescriptor());
+            }
             try {
                 durationUs = Long.parseLong(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000;
             } catch (NumberFormatException e) {
